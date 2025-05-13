@@ -1,0 +1,31 @@
+echo <!DOCTYPE html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"UTF-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+    <title>SEWS Dashboard</title>
+    <link rel=\"stylesheet\" href=\"css/style.css\">
+</head>
+<body>
+    <div class=\"container\">
+        <h1>SEWS Dashboard</h1>
+        <div class=\"indicators\">
+            <div class=\"indicator\">
+                <label>Indicator 1:</label>
+                <span id=\"value1\">0</span>
+            </div>
+            <div class=\"indicator\">
+                <label>Indicator 2:</label>
+                <span id=\"value2\">0</span>
+            </div>
+            <div class=\"indicator\">
+                <label>Indicator 3:</label>
+                <span id=\"value3\">0</span>
+            </div>
+        </div>
+        <div id=\"connection-status\">Disconnected</div>
+    </div>
+    <script src=\"js/websocket.js\"></script>
+</body>
+</html>
+
