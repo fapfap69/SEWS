@@ -1,12 +1,28 @@
-# Build files
+# Compiled files
 *.o
 *.out
 sews
+obj/
 
 # IDE files
 .vscode/
 .idea/
-
-# OS specific
-.DS_Store
 *.swp
+
+# Build directory
+build/
+
+# Dependencies
+*.d
+
+# Debug files
+*.dSYM/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
