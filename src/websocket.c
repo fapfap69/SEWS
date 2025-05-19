@@ -72,8 +72,12 @@ int handle_websocket_handshake(int client_socket, char* buffer) {
 }
 
 // Funzione per inviare un frame WebSocket
-static int send_websocket_frame(int client_socket, const char* message, size_t length) {
+int send_websocket_frame(int client_socket, const char* message, size_t length) {
     unsigned char* frame = malloc(10 + length); // Header max 10 bytes + payload
+    if (!frame) {
+        return -1;
+    }
+    
     size_t frame_size;
     
     frame[0] = WS_FIN | WS_OPCODE_TEXT;
@@ -139,20 +143,9 @@ void handle_websocket_frame(int client_socket, unsigned char* buffer, size_t len
 }
 
 // Funzione per inviare aggiornamenti a tutti i client
+// Questa funzione è dichiarata in websocket.h ma implementata in server.c
+// come broadcast_to_clients
 void broadcast_metrics(const char* message) {
-    // Nota: questa funzione dovrà essere implementata per accedere alla lista dei client
-    // e inviare il messaggio a ciascuno di essi usando send_websocket_frame
-    // La lista dei client dovrebbe essere gestita nel server.c
-    
-    // Per ora è solo un placeholder
-    printf("Broadcasting: %s\n", message);
+    extern void broadcast_to_clients(const char* message);
+    broadcast_to_clients(message);
 }
-// In un'applicazione reale, dovresti implementare una lista di client e inviare il messaggio a ciascuno di essi
-// usando send_websocket_frame(client_socket, message, length);
-// La lista dei client dovrebbe essere gestita nel server.c
-// In un'applicazione reale, dovresti implementare una lista di client e inviare il messaggio a ciascuno di essi
-// usando send_websocket_frame(client_socket, message, length);
-// La lista dei client dovrebbe essere gestita nel server.c
-// In un'applicazione reale, dovresti implementare una lista di client e inviare il messaggio a ciascuno di essi
-// usando send_websocket_frame(client_socket, message, length);
-// La lista dei client dovrebbe essere gestita nel server.c     
