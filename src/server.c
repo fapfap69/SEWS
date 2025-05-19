@@ -29,14 +29,30 @@ static pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 // Callback per l'aggiornamento delle metriche
 void metrics_updated_callback(const Metrics* metrics) {
     // Prepara il messaggio JSON
-    char message[256];
-    snprintf(message, sizeof(message), 
-             "{\"value1\": %d, \"value2\": %d}", 
-             metrics->value1, metrics->value2);
+    char message[1024] = "{";
+    char* p = message + 1;
+    
+    for (int i = 0; i < metrics->count; i++) {
+        // Aggiungi virgola se non è il primo elemento
+        if (i > 0) {
+            *p++ = ',';
+            *p++ = ' ';
+        }
+        
+        // Aggiungi "nome": valore
+        p += snprintf(p, sizeof(message) - (p - message), 
+                     "\"%s\": %d", 
+                     metrics->metrics[i].name, metrics->metrics[i].value);
+    }
+    
+    // Chiudi il JSON
+    *p++ = '}';
+    *p = '\0';
     
     // Invia l'aggiornamento a tutti i client
     broadcast_metrics(message);
 }
+
 
 // Aggiunge un client alla lista
 static void add_client(int client_socket) {
@@ -99,10 +115,27 @@ static void* handle_client(void* arg) {
             // Invia subito le metriche correnti al nuovo client
             Metrics current;
             metrics_get(&current);
-            char init_message[256];
-            snprintf(init_message, sizeof(init_message), 
-                     "{\"value1\": %d, \"value2\": %d}", 
-                     current.value1, current.value2);
+
+            // Crea il messaggio JSON
+            char init_message[1024] = "{";
+            char* p = init_message + 1;
+
+            for (int i = 0; i < current.count; i++) {
+                // Aggiungi virgola se non è il primo elemento
+                if (i > 0) {
+                    *p++ = ',';
+                    *p++ = ' ';
+                }
+    
+                // Aggiungi "nome": valore
+                p += snprintf(p, sizeof(init_message) - (p - init_message), 
+                             "\"%s\": %d", 
+                            current.metrics[i].name, current.metrics[i].value);
+            }
+
+            // Chiudi il JSON
+            *p++ = '}';
+            *p = '\0';
             
             send_websocket_frame(client_socket, init_message, strlen(init_message));
             

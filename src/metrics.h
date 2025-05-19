@@ -5,12 +5,27 @@
 #include <pthread.h>
 #include <stdbool.h>
 
+#define MAX_METRICS 20  // Numero massimo di metriche supportate
+
+
+// Struttura per una singola metrica
+typedef struct {
+    char name[64];
+    int value;
+} Metric;
+
 // Struttura per le metriche
 typedef struct {
-    int value1;
-    int value2;
-    // Aggiungi altre metriche secondo necessità
+    Metric metrics[MAX_METRICS];
+    int count;
 } Metrics;
+
+// Struttura per memorizzare i token e le metriche associate
+typedef struct {
+    char token[64];
+    char* metrics;
+    time_t expiry;
+} TokenMetrics;
 
 // Inizializza il sistema di metriche
 void metrics_init(void);
@@ -32,6 +47,12 @@ bool metrics_start_collection(const char* source);
 void metrics_stop_collection(void);
 
 void metrics_updated_callback(const Metrics* metrics);
+void metrics_set(const char* name, int value);
 
+// Token metrics functions
+void generate_random_token(char* token, size_t length);
+void store_token_metrics(const char* token, const char* metrics);
+bool get_token_metrics(const char* token, char** metrics);
+void cleanup_expired_tokens();
 
 #endif

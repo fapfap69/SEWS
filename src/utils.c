@@ -69,6 +69,8 @@ const char* get_file_extension(const char* filename) {
     }
     return dot + 1;
 }
+
+
 /*
 // Funzione per ottenere il MIME type
 const char* get_mime_type(const char* filename) {

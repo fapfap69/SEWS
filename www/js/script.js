@@ -1,17 +1,55 @@
-// www/script.js
 document.addEventListener('DOMContentLoaded', function() {
-    const value1Element = document.getElementById('value1');
-    const value2Element = document.getElementById('value2');
+    const metricsContainer = document.getElementById('metrics-container');
     const statusElement = document.getElementById('connection-status');
     let ws = null;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
+    
+    // Ottieni le metriche dal meta tag
+    const metricsMeta = document.querySelector('meta[name="sews-metrics"]');
+    const authorizedMetrics = metricsMeta ? metricsMeta.getAttribute('content').split(',') : [];
+    
+    // Ottieni il token di sicurezza inserito dal server
+    const config = window.SEWS_CONFIG || {};
+    const securityToken = config.securityToken || '';
+    
+    // Funzione per creare o aggiornare una metrica
+    function updateMetric(name, value) {
+        // Verifica se questa metrica è autorizzata
+        if (authorizedMetrics.length > 0 && !authorizedMetrics.includes(name)) {
+            return; // Ignora metriche non autorizzate
+        }
+        
+        // Cerca se esiste già un elemento per questa metrica
+        let metricElement = document.getElementById('metric-' + name);
+        
+        // Se non esiste, crealo
+        if (!metricElement) {
+            const metricCard = document.createElement('div');
+            metricCard.className = 'metric-card';
+            
+            const metricTitle = document.createElement('h2');
+            metricTitle.textContent = name;
+            
+            const metricValue = document.createElement('div');
+            metricValue.className = 'metric-value';
+            metricValue.id = 'metric-' + name;
+            metricValue.textContent = value;
+            
+            metricCard.appendChild(metricTitle);
+            metricCard.appendChild(metricValue);
+            metricsContainer.appendChild(metricCard);
+        } else {
+            // Altrimenti aggiorna solo il valore
+            metricElement.textContent = value;
+        }
+    }
 
     function connect() {
-        // Usa il protocollo corretto (ws o wss) e la porta corretta
+        // Usa il protocollo corretto (ws o wss)
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Usa la stessa porta del server HTTP
-        const wsUrl = `${protocol}//${window.location.host}`;
+        // Includi il token di sicurezza nella connessione
+        const wsUrl = `${protocol}//${window.location.host}?token=${securityToken}`;
         
         console.log('Tentativo di connessione a:', wsUrl);
         
@@ -48,11 +86,10 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Messaggio ricevuto:', event.data);
             try {
                 const data = JSON.parse(event.data);
-                if (data.value1 !== undefined) {
-                    value1Element.textContent = data.value1;
-                }
-                if (data.value2 !== undefined) {
-                    value2Element.textContent = data.value2;
+                
+                // Aggiorna tutte le metriche ricevute
+                for (const [name, value] of Object.entries(data)) {
+                    updateMetric(name, value);
                 }
             } catch (e) {
                 console.error('Errore nel parsing dei dati:', e);
@@ -67,4 +104,3 @@ document.addEventListener('DOMContentLoaded', function() {
     // Avvia la connessione WebSocket
     connect();
 });
-

@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include "http_handler.h"
 #include "server.h"
+#include "utils.h"
 
 extern ServerConfig server_config;
 #define MAX_PATH 1024
@@ -154,5 +155,97 @@ void handle_http_request(int client_socket, char* buffer) {
         snprintf(filepath, sizeof(filepath), "%s/index.html", server_config.www_root);
     }
 
-    send_file(client_socket, filepath);
+    // Se è un file HTML, analizza le metriche richieste
+    if (strstr(filepath, ".html") != NULL) {
+        FILE* file = fopen(filepath, "r");
+        if (!file) {
+            send_404(client_socket);
+            return;
+        }
+        
+        // Leggi il contenuto del file
+        fseek(file, 0, SEEK_END);
+        long size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+        
+        char* content = malloc(size + 1);
+        fread(content, 1, size, file);
+        content[size] = '\0';
+        fclose(file);
+        
+        // Cerca il meta tag con le metriche
+        char* metrics_list = NULL;
+        char* meta_tag = strstr(content, "<meta name=\"sews-metrics\" content=\"");
+        
+        if (meta_tag) {
+            meta_tag += 34; // Lunghezza di "<meta name=\"sews-metrics\" content=\""
+            char* end = strchr(meta_tag, '\"');
+            
+            if (end) {
+                size_t metrics_length = end - meta_tag;
+                metrics_list = malloc(metrics_length + 1);
+                strncpy(metrics_list, meta_tag, metrics_length);
+                metrics_list[metrics_length] = '\0';
+            }
+        }
+        
+        // Se non ci sono metriche specificate, usa una lista vuota
+        if (!metrics_list) {
+            metrics_list = strdup("");
+        }
+        
+        // Genera un token di sicurezza unico per questa richiesta
+        char token[64];
+        generate_random_token(token, sizeof(token));
+        
+        // Crea il tag script con il token di sicurezza
+        char script_tag[512];
+        snprintf(script_tag, sizeof(script_tag),
+                 "<script>\n"
+                 "window.SEWS_CONFIG = {\n"
+                 "  securityToken: \"%s\"\n"
+                 "};\n"
+                 "</script>",
+                 token);
+        
+        // Cerca il tag </head> per inserire lo script
+        char* head_end = strstr(content, "</head>");
+        if (head_end) {
+            // Calcola la posizione di inserimento
+            size_t pos = head_end - content;
+            
+            // Crea il nuovo contenuto con lo script inserito
+            char* new_content = malloc(size + strlen(script_tag) + 1);
+            strncpy(new_content, content, pos);
+            strcpy(new_content + pos, script_tag);
+            strcpy(new_content + pos + strlen(script_tag), head_end);
+            
+            // Invia la risposta HTTP con il contenuto modificato
+            char header[512];
+            snprintf(header, sizeof(header),
+                     "HTTP/1.1 200 OK\r\n"
+                     "Content-Type: text/html\r\n"
+                     "Content-Length: %ld\r\n"
+                     "Connection: close\r\n"
+                     "\r\n",
+                     strlen(new_content));
+            
+            send(client_socket, header, strlen(header), 0);
+            send(client_socket, new_content, strlen(new_content), 0);
+            
+            free(new_content);
+        } else {
+            // Se non trova </head>, invia il contenuto originale
+            send_file(client_socket, filepath);
+        }
+        
+        // Memorizza l'associazione tra token e metriche autorizzate
+        store_token_metrics(token, metrics_list);
+        
+        free(content);
+        free(metrics_list);
+    } else {
+        // Per i file non HTML, usa la funzione esistente
+        send_file(client_socket, filepath);
+    }
 }

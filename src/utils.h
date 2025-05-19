@@ -15,6 +15,9 @@ char* safe_strdup(const char* str);
 // Funzioni di gestione file
 char* read_file(const char* filename);
 const char* get_file_extension(const char* filename);
+
+
+
 //const char* get_mime_type(const char* filename);
 
 // Funzioni di rete
