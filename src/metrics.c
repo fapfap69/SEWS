@@ -45,6 +45,55 @@ void metrics_get(Metrics* metrics) {
     pthread_mutex_unlock(&metrics_mutex);
 }
 
+// Aggiorna una metrica specifica con unità di misura
+void metrics_set_with_unit(const char* name, int value, const char* unit) {
+    pthread_mutex_lock(&metrics_mutex);
+    
+    // Cerca se la metrica esiste già
+    for (int i = 0; i < current_metrics.count; i++) {
+        if (strcmp(current_metrics.metrics[i].name, name) == 0) {
+            current_metrics.metrics[i].value = value;
+            
+            // Aggiorna l'unità di misura se specificata
+            if (unit && *unit) {
+                strncpy(current_metrics.metrics[i].unit, unit, sizeof(current_metrics.metrics[i].unit) - 1);
+                current_metrics.metrics[i].unit[sizeof(current_metrics.metrics[i].unit) - 1] = '\0';
+            }
+            
+            // Notifica tramite callback se registrato
+            if (update_callback) {
+                update_callback(&current_metrics);
+            }
+            
+            pthread_mutex_unlock(&metrics_mutex);
+            return;
+        }
+    }
+    
+    // Se non esiste e c'è spazio, aggiungila
+    if (current_metrics.count < MAX_METRICS) {
+        strncpy(current_metrics.metrics[current_metrics.count].name, name, sizeof(current_metrics.metrics[0].name) - 1);
+        current_metrics.metrics[current_metrics.count].name[sizeof(current_metrics.metrics[0].name) - 1] = '\0';
+        current_metrics.metrics[current_metrics.count].value = value;
+        
+        // Imposta l'unità di misura se specificata
+        if (unit && *unit) {
+            strncpy(current_metrics.metrics[current_metrics.count].unit, unit, sizeof(current_metrics.metrics[0].unit) - 1);
+            current_metrics.metrics[current_metrics.count].unit[sizeof(current_metrics.metrics[0].unit) - 1] = '\0';
+        } else {
+            current_metrics.metrics[current_metrics.count].unit[0] = '\0';  // Unità vuota
+        }
+        
+        current_metrics.count++;
+        
+        // Notifica tramite callback se registrato
+        if (update_callback) {
+            update_callback(&current_metrics);
+        }
+    }
+    
+    pthread_mutex_unlock(&metrics_mutex);
+}
 
 // Aggiorna una metrica specifica
 void metrics_set(const char* name, int value) {
@@ -80,7 +129,6 @@ void metrics_set(const char* name, int value) {
     
     pthread_mutex_unlock(&metrics_mutex);
 }
-
 // Funzione per leggere le metriche da un file
 static bool read_metrics_from_file(const char* filename) {
     FILE* file = fopen(filename, "r");
@@ -108,11 +156,25 @@ static bool read_metrics_from_file(const char* filename) {
         char* name = line;
         char* value_str = separator + 1;
         
+        // Cerca l'unità di misura tra parentesi quadre
+        char* unit = NULL;
+        char* unit_start = strchr(value_str, '[');
+        if (unit_start) {
+            *unit_start = '\0';  // Termina il valore prima dell'unità
+            unit_start++;  // Salta la parentesi quadra
+            
+            char* unit_end = strchr(unit_start, ']');
+            if (unit_end) {
+                *unit_end = '\0';  // Termina l'unità
+                unit = unit_start;
+            }
+        }
+        
         // Converti il valore in intero
         int value = atoi(value_str);
         
-        // Aggiorna la metrica
-        metrics_set(name, value);
+        // Aggiorna la metrica con l'unità di misura
+        metrics_set_with_unit(name, value, unit ? unit : "");
         success = true;
     }
     

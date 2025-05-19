@@ -1,0 +1,6 @@
+# Metriche di sistema con unità di misura
+cpu=75[%]
+memory=512[MB]
+disk=250[GB]
+network=1024[KB/s]
+temperature=42[°C]

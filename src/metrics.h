@@ -12,6 +12,7 @@
 typedef struct {
     char name[64];
     int value;
+    char unit[16];  // Unità di misura (%, MB, GB, KB/s, ecc.)
 } Metric;
 
 // Struttura per le metriche
@@ -48,6 +49,7 @@ void metrics_stop_collection(void);
 
 void metrics_updated_callback(const Metrics* metrics);
 void metrics_set(const char* name, int value);
+void metrics_set_with_unit(const char* name, int value, const char* unit);
 
 // Token metrics functions
 void generate_random_token(char* token, size_t length);

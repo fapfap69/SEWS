@@ -39,10 +39,12 @@ void metrics_updated_callback(const Metrics* metrics) {
             *p++ = ' ';
         }
         
-        // Aggiungi "nome": valore
+        // Aggiungi "nome": {"value": valore, "unit": "unità"}
         p += snprintf(p, sizeof(message) - (p - message), 
-                     "\"%s\": %d", 
-                     metrics->metrics[i].name, metrics->metrics[i].value);
+                     "\"%s\": {\"value\": %d, \"unit\": \"%s\"}", 
+                     metrics->metrics[i].name, 
+                     metrics->metrics[i].value,
+                     metrics->metrics[i].unit);
     }
     
     // Chiudi il JSON

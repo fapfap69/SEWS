@@ -14,34 +14,48 @@ document.addEventListener('DOMContentLoaded', function() {
     const securityToken = config.securityToken || '';
     
     // Funzione per creare o aggiornare una metrica
-    function updateMetric(name, value) {
+    function updateMetric(name, data) {
         // Verifica se questa metrica è autorizzata
         if (authorizedMetrics.length > 0 && !authorizedMetrics.includes(name)) {
             return; // Ignora metriche non autorizzate
         }
-        
+    
+        // Estrai valore e unità
+        const value = data.value;
+        const unit = data.unit || '';
+    
         // Cerca se esiste già un elemento per questa metrica
         let metricElement = document.getElementById('metric-' + name);
-        
+        let unitElement = document.getElementById('unit-' + name);
+    
         // Se non esiste, crealo
         if (!metricElement) {
-            const metricCard = document.createElement('div');
+           const metricCard = document.createElement('div');
             metricCard.className = 'metric-card';
-            
+        
             const metricTitle = document.createElement('h2');
             metricTitle.textContent = name;
-            
+        
             const metricValue = document.createElement('div');
             metricValue.className = 'metric-value';
             metricValue.id = 'metric-' + name;
             metricValue.textContent = value;
-            
+        
+            const metricUnit = document.createElement('div');
+            metricUnit.className = 'metric-unit';
+            metricUnit.id = 'unit-' + name;
+            metricUnit.textContent = unit;
+        
             metricCard.appendChild(metricTitle);
             metricCard.appendChild(metricValue);
+            metricCard.appendChild(metricUnit);
             metricsContainer.appendChild(metricCard);
         } else {
-            // Altrimenti aggiorna solo il valore
+            // Altrimenti aggiorna solo il valore e l'unità
             metricElement.textContent = value;
+            if (unitElement) {
+                unitElement.textContent = unit;
+            }
         }
     }
 
@@ -86,10 +100,10 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Messaggio ricevuto:', event.data);
             try {
                 const data = JSON.parse(event.data);
-                
+        
                 // Aggiorna tutte le metriche ricevute
-                for (const [name, value] of Object.entries(data)) {
-                    updateMetric(name, value);
+                for (const [name, metricData] of Object.entries(data)) {
+                    updateMetric(name, metricData);
                 }
             } catch (e) {
                 console.error('Errore nel parsing dei dati:', e);
