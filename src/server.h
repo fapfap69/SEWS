@@ -3,6 +3,8 @@
 #define SERVER_H
 
 #include <stdbool.h>
+#include "metrics.h"
+
 
 // Configurazione predefinita
 #define DEFAULT_MAX_CLIENTS 10
@@ -26,5 +28,6 @@ extern ServerConfig server_config;
 void* start_server(void* arg);
 void update_metrics(int value1, int value2);
 void parse_command_line(int argc, char* argv[]);
+void metrics_updated_callback(const Metrics* metrics);
 
 #endif

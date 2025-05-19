@@ -10,6 +10,7 @@
 #include "server.h"
 #include "websocket.h"
 #include "http_handler.h"
+#include "metrics.h"
 
 // Inizializzazione della configurazione con valori predefiniti
 ServerConfig server_config = {
@@ -25,14 +26,17 @@ static int* client_sockets;
 static int num_clients = 0;
 static pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-// Struttura per i dati metrici
-typedef struct {
-    int value1;
-    int value2;
-} Metrics;
-
-static Metrics current_metrics = {0, 0};
-static pthread_mutex_t metrics_mutex = PTHREAD_MUTEX_INITIALIZER;
+// Callback per l'aggiornamento delle metriche
+void metrics_updated_callback(const Metrics* metrics) {
+    // Prepara il messaggio JSON
+    char message[256];
+    snprintf(message, sizeof(message), 
+             "{\"value1\": %d, \"value2\": %d}", 
+             metrics->value1, metrics->value2);
+    
+    // Invia l'aggiornamento a tutti i client
+    broadcast_metrics(message);
+}
 
 // Aggiunge un client alla lista
 static void add_client(int client_socket) {
@@ -93,12 +97,12 @@ static void* handle_client(void* arg) {
             add_client(client_socket);
             
             // Invia subito le metriche correnti al nuovo client
-            pthread_mutex_lock(&metrics_mutex);
+            Metrics current;
+            metrics_get(&current);
             char init_message[256];
             snprintf(init_message, sizeof(init_message), 
                      "{\"value1\": %d, \"value2\": %d}", 
-                     current_metrics.value1, current_metrics.value2);
-            pthread_mutex_unlock(&metrics_mutex);
+                     current.value1, current.value2);
             
             send_websocket_frame(client_socket, init_message, strlen(init_message));
             
@@ -143,31 +147,23 @@ void broadcast_to_clients(const char* message) {
 
 
 void update_metrics(int value1, int value2) {
-    pthread_mutex_lock(&metrics_mutex);
-    current_metrics.value1 = value1;
-    current_metrics.value2 = value2;
-    
-    // Prepara il messaggio JSON
-    char message[256];
-    snprintf(message, sizeof(message), 
-             "{\"value1\": %d, \"value2\": %d}", 
-             value1, value2);
-    
-    pthread_mutex_unlock(&metrics_mutex);
-    
-    // Invia l'aggiornamento a tutti i client
-    broadcast_metrics(message);
+    // Utilizza il modulo metrics per aggiornare i valori
+    metrics_update(value1, value2);
 }
 
 // Funzione principale del server
 void* start_server(void* arg) {
+
     // Alloca l'array dei client
     client_sockets = malloc(server_config.max_clients * sizeof(int));
     if (!client_sockets) {
         perror("Errore nell'allocazione della memoria per i client");
         exit(1);
     }
-    
+
+    // Registra il callback per le metriche
+    metrics_register_callback(metrics_updated_callback);
+
     struct sockaddr_in server_addr;
     
     // Crea il socket
