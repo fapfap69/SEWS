@@ -73,3 +73,11 @@ h1 {
     color: #666;
     margin-top: 5px;
 }
+
+.timestamp {
+    text-align: center;
+    padding: 10px;
+    color: #666;
+    margin-top: 20px;
+    font-style: italic;
+}

@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <pthread.h>
 #include <getopt.h>
+#include <time.h>
 #include "server.h"
 #include "websocket.h"
 #include "http_handler.h"
@@ -32,18 +33,35 @@ void metrics_updated_callback(const Metrics* metrics) {
     char message[1024] = "{";
     char* p = message + 1;
     
+    // Aggiungi il timestamp
+    time_t now = time(NULL);
+    char time_str[32];
+    strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    
+    p += snprintf(p, sizeof(message) - (p - message), 
+                 "\"timestamp\": \"%s\"", time_str);
+    
+    // Aggiungi le metriche
     for (int i = 0; i < metrics->count; i++) {
-        // Aggiungi virgola se non è il primo elemento
-        if (i > 0) {
-            *p++ = ',';
-            *p++ = ' ';
+        // Aggiungi virgola e spazio
+        *p++ = ',';
+        *p++ = ' ';
+        
+        // Formatta il valore con precisione appropriata
+        char value_str[32];
+        // Se il valore è un intero, non mostrare decimali
+        if (metrics->metrics[i].value == (int)metrics->metrics[i].value) {
+            snprintf(value_str, sizeof(value_str), "%d", (int)metrics->metrics[i].value);
+        } else {
+            // Altrimenti mostra fino a 2 decimali
+            snprintf(value_str, sizeof(value_str), "%.2f", metrics->metrics[i].value);
         }
         
         // Aggiungi "nome": {"value": valore, "unit": "unità"}
         p += snprintf(p, sizeof(message) - (p - message), 
-                     "\"%s\": {\"value\": %d, \"unit\": \"%s\"}", 
+                     "\"%s\": {\"value\": %s, \"unit\": \"%s\"}", 
                      metrics->metrics[i].name, 
-                     metrics->metrics[i].value,
+                     value_str,
                      metrics->metrics[i].unit);
     }
     
@@ -54,7 +72,6 @@ void metrics_updated_callback(const Metrics* metrics) {
     // Invia l'aggiornamento a tutti i client
     broadcast_metrics(message);
 }
-
 
 // Aggiunge un client alla lista
 static void add_client(int client_socket) {
@@ -122,17 +139,36 @@ static void* handle_client(void* arg) {
             char init_message[1024] = "{";
             char* p = init_message + 1;
 
+            // Aggiungi il timestamp
+            time_t now = time(NULL);
+            char time_str[32];
+            strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", localtime(&now));
+
+            p += snprintf(p, sizeof(init_message) - (p - init_message), 
+                         "\"timestamp\": \"%s\"", time_str);
+
+            // Aggiungi le metriche
             for (int i = 0; i < current.count; i++) {
-                // Aggiungi virgola se non è il primo elemento
-                if (i > 0) {
-                    *p++ = ',';
-                    *p++ = ' ';
+                // Aggiungi virgola e spazio
+                *p++ = ',';
+                *p++ = ' ';
+
+                // Formatta il valore con precisione appropriata
+                char value_str[32];
+                // Se il valore è un intero, non mostrare decimali
+                if (current.metrics[i].value == (int)current.metrics[i].value) {
+                    snprintf(value_str, sizeof(value_str), "%d", (int)current.metrics[i].value);
+                } else {
+                    // Altrimenti mostra fino a 2 decimali
+                    snprintf(value_str, sizeof(value_str), "%.2f", current.metrics[i].value);
                 }
-    
-                // Aggiungi "nome": valore
+
+                // Aggiungi "nome": {"value": valore, "unit": "unità"}
                 p += snprintf(p, sizeof(init_message) - (p - init_message), 
-                             "\"%s\": %d", 
-                            current.metrics[i].name, current.metrics[i].value);
+                                "\"%s\": {\"value\": %s, \"unit\": \"%s\"}", 
+                                current.metrics[i].name, 
+                                value_str,
+                                current.metrics[i].unit);
             }
 
             // Chiudi il JSON

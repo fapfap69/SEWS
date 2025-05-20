@@ -12,7 +12,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ottieni il token di sicurezza inserito dal server
     const config = window.SEWS_CONFIG || {};
     const securityToken = config.securityToken || '';
+
+    function updateTimestamp(timestamp) {
+        let timestampElement = document.getElementById('last-update');
     
+        // Se non esiste, crealo
+        if (!timestampElement) {
+            const statusDiv = document.querySelector('.status');
+        
+            // Crea un elemento per il timestamp
+            const timestampDiv = document.createElement('div');
+            timestampDiv.className = 'timestamp';
+            timestampDiv.innerHTML = 'Ultimo aggiornamento: <span id="last-update"></span>';
+        
+            // Inseriscilo prima dell'elemento status
+            statusDiv.parentNode.insertBefore(timestampDiv, statusDiv);
+        
+            // Ottieni il riferimento all'elemento span
+            timestampElement = document.getElementById('last-update');
+        }
+    
+        // Aggiorna il timestamp
+        timestampElement.textContent = timestamp;
+    }
+
     // Funzione per creare o aggiornare una metrica
     function updateMetric(name, data) {
         // Verifica se questa metrica è autorizzata
@@ -101,8 +124,15 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 const data = JSON.parse(event.data);
         
+                // Aggiorna il timestamp se presente
+                if (data.timestamp) {
+                    updateTimestamp(data.timestamp);
+                }
+        
                 // Aggiorna tutte le metriche ricevute
                 for (const [name, metricData] of Object.entries(data)) {
+                    // Salta il campo timestamp che non è una metrica
+                    if (name === 'timestamp') continue;
                     updateMetric(name, metricData);
                 }
             } catch (e) {

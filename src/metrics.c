@@ -46,7 +46,7 @@ void metrics_get(Metrics* metrics) {
 }
 
 // Aggiorna una metrica specifica con unità di misura
-void metrics_set_with_unit(const char* name, int value, const char* unit) {
+void metrics_set_with_unit(const char* name, double value, const char* unit) {
     pthread_mutex_lock(&metrics_mutex);
     
     // Cerca se la metrica esiste già
@@ -170,8 +170,8 @@ static bool read_metrics_from_file(const char* filename) {
             }
         }
         
-        // Converti il valore in intero
-        int value = atoi(value_str);
+        // Converti il valore in double
+        double value = atof(value_str);
         
         // Aggiorna la metrica con l'unità di misura
         metrics_set_with_unit(name, value, unit ? unit : "");
@@ -183,16 +183,56 @@ static bool read_metrics_from_file(const char* filename) {
 }
 
 // Funzione per leggere le metriche da una pipe
-static bool read_metrics_from_pipe(const char* command, int* value1, int* value2) {
+static bool read_metrics_from_pipe(const char* command) {
     FILE* pipe = popen(command, "r");
     if (!pipe) {
         return false;
     }
     
-    int result = fscanf(pipe, "%d %d", value1, value2);
-    pclose(pipe);
+    char line[256];
+    bool success = false;
     
-    return (result == 2);
+    while (fgets(line, sizeof(line), pipe)) {
+        // Rimuovi newline
+        char* newline = strchr(line, '\n');
+        if (newline) *newline = '\0';
+        
+        // Salta linee vuote e commenti
+        if (line[0] == '\0' || line[0] == '#') continue;
+        
+        // Cerca il separatore '='
+        char* separator = strchr(line, '=');
+        if (!separator) continue;
+        
+        // Dividi nome e valore
+        *separator = '\0';
+        char* name = line;
+        char* value_str = separator + 1;
+        
+        // Cerca l'unità di misura tra parentesi quadre
+        char* unit = NULL;
+        char* unit_start = strchr(value_str, '[');
+        if (unit_start) {
+            *unit_start = '\0';  // Termina il valore prima dell'unità
+            unit_start++;  // Salta la parentesi quadra
+            
+            char* unit_end = strchr(unit_start, ']');
+            if (unit_end) {
+                *unit_end = '\0';  // Termina l'unità
+                unit = unit_start;
+            }
+        }
+        
+        // Converti il valore in double
+        double value = atof(value_str);
+        
+        // Aggiorna la metrica con l'unità di misura
+        metrics_set_with_unit(name, value, unit ? unit : "");
+        success = true;
+    }
+    
+    pclose(pipe);
+    return success;
 }
 
 // Thread di acquisizione delle metriche
@@ -208,8 +248,7 @@ static void* metrics_collection_thread(void* arg) {
             success = read_metrics_from_file(source + 5);
         } else if (strncmp(source, "cmd:", 4) == 0) {
             // Leggi da comando
-            // Implementazione simile a read_metrics_from_file ma con popen
-            // ...
+            success = read_metrics_from_pipe(source + 4);
         } else if (strncmp(source, "sim:", 4) == 0) {
             // Simulazione
             static int counter = 0;

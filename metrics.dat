@@ -1,0 +1,17 @@
+# Metriche di sistema
+# Generato il Mar 20 Mag 2025 09:56:19 CEST
+
+# Utilizzo CPU (percentuale)
+cpu=11.76[%]
+
+# Memoria utilizzata (MB)
+memory=15G[MB]
+
+# Spazio su disco utilizzato (GB)
+disk=10i.0[GB]
+
+# Carico di sistema (load average)
+load=2,66
+
+# Numero di processi
+processes=872
