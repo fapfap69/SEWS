@@ -43,85 +43,24 @@ const char* get_mime_type(const char* filename) {
     return "text/plain";
 }
 
-// Invia un errore 404 se il file non esiste
-static void send_404(int client_socket) {
-    const char* response = "HTTP/1.1 404 Not Found\r\n"
-                          "Content-Type: text/html\r\n"
-                          "Connection: close\r\n"
-                          "\r\n"
-                          "<html><body><h1>404 Not Found</h1></body></html>";
-    send(client_socket, response, strlen(response), 0);
-}
-// Invia un errore 500 se c'è un problema con il server
-static void send_500(int client_socket) {
-    const char* response = "HTTP/1.1 500 Internal Server Error\r\n"
-                          "Content-Type: text/html\r\n"
-                          "Connection: close\r\n"
-                          "\r\n"
-                          "<html><body><h1>500 Internal Server Error</h1></body></html>";
-    send(client_socket, response, strlen(response), 0);
-}
-// Invia un errore 414 se l'URI è troppo lungo
-static void send_414(int client_socket) {
-    const char* response = "HTTP/1.1 414 URI Too Long\r\n"
-                          "Content-Type: text/html\r\n"
-                          "Connection: close\r\n"
-                          "\r\n"
-                          "<html><body><h1>414 URI Too Long</h1></body></html>";
-    send(client_socket, response, strlen(response), 0);
-}
-// Invia un errore 403 se l'accesso è vietato
-static void send_403(int client_socket) {
-    const char* response = "HTTP/1.1 403 Forbidden\r\n"
-                          "Content-Type: text/html\r\n"
-                          "Connection: close\r\n"
-                          "\r\n"
-                          "<html><body><h1>403 Forbidden</h1></body></html>";
-    send(client_socket, response, strlen(response), 0);
-}
-// Invia un errore 400 se la richiesta è malformata
-static void send_400(int client_socket) {
-    const char* response = "HTTP/1.1 400 Bad Request\r\n"
-                          "Content-Type: text/html\r\n"
-                          "Connection: close\r\n"
-                          "\r\n"
-                          "<html><body><h1>400 Bad Request</h1></body></html>";
-    send(client_socket, response, strlen(response), 0);
-}
-/*
-// Invia un errore 401 se l'autenticazione è richiesta
-static void send_401(int client_socket) {
-    const char* response = "HTTP/1.1 401 Unauthorized\r\n"
-                          "Content-Type: text/html\r\n"
-                          "Connection: close\r\n"
-                          "\r\n"
-                          "<html><body><h1>401 Unauthorized</h1></body></html>";
-    send(client_socket, response, strlen(response), 0);
-}
-// Invia un errore 408 se la richiesta è scaduta
-static void send_408(int client_socket) {
-    const char* response = "HTTP/1.1 408 Request Timeout\r\n"
-                          "Content-Type: text/html\r\n"
-                          "Connection: close\r\n"
-                          "\r\n"
-                          "<html><body><h1>408 Request Timeout</h1></body></html>";
-    send(client_socket, response, strlen(response), 0);
-}
-    */
-// Invia un errore 429 se ci sono troppe richieste
-static void send_429(int client_socket) {
-    const char* response = "HTTP/1.1 429 Too Many Requests\r\n"
-                          "Content-Type: text/html\r\n"
-                          "Connection: close\r\n"
-                          "\r\n"
-                          "<html><body><h1>429 Too Many Requests</h1></body></html>";
+// Funzione generica per inviare risposte HTTP di errore
+void send_http_error(int client_socket, int status_code, const char* status_text) {
+    char response[256];
+    snprintf(response, sizeof(response),
+             "HTTP/1.1 %d %s\r\n"
+             "Content-Type: text/html\r\n"
+             "Connection: close\r\n"
+             "\r\n"
+             "<html><body><h1>%d %s</h1></body></html>",
+             status_code, status_text, status_code, status_text);
+    
     send(client_socket, response, strlen(response), 0);
 }
 
 static void send_file(int client_socket, const char* filepath) {
     FILE* file = fopen(filepath, "rb");
     if (!file) {
-        send_404(client_socket);
+        send_http_error(client_socket, 404, "Not Found");
         return;
     }
 
@@ -151,24 +90,52 @@ static void send_file(int client_socket, const char* filepath) {
     fclose(file);
 }
 
+// Funzione per estrarre il contenuto di un meta tag
+static char* extract_meta_content(const char* html, const char* meta_name) {
+    char search_string[128];
+    snprintf(search_string, sizeof(search_string), "<meta name=\"%s\" content=\"", meta_name);
+    
+    const char* meta_tag = strstr(html, search_string);
+    if (!meta_tag) {
+        return NULL;
+    }
+    
+    const char* content_start = meta_tag + strlen(search_string);
+    const char* content_end = strchr(content_start, '\"');
+    if (!content_end) {
+        return NULL;
+    }
+    
+    size_t content_length = content_end - content_start;
+    char* content = malloc(content_length + 1);
+    if (!content) {
+        return NULL;
+    }
+    
+    strncpy(content, content_start, content_length);
+    content[content_length] = '\0';
+    
+    return content;
+}
+
 void handle_http_request(int client_socket, char* buffer) {
     // Verifica se la richiesta è valida
     if (!strstr(buffer, "GET ") && !strstr(buffer, "HEAD ")) {
-        send_400(client_socket);  // Bad Request
+        send_http_error(client_socket, 400, "Bad Request");
         return;
     }
     
     // Estrai il percorso dalla richiesta
     char* path_start = strchr(buffer, ' ');
     if (!path_start) {
-        send_400(client_socket);  // Bad Request
+        send_http_error(client_socket, 400, "Bad Request");
         return;
     }
     
     path_start += 1;
     char* path_end = strchr(path_start, ' ');
     if (!path_end) {
-        send_400(client_socket);  // Bad Request
+        send_http_error(client_socket, 400, "Bad Request");
         return;
     }
     
@@ -176,13 +143,13 @@ void handle_http_request(int client_socket, char* buffer) {
     
     // Verifica se il percorso è troppo lungo
     if (path_length >= MAX_PATH - strlen(server_config.www_root) - 1) {
-        send_414(client_socket);  // URI Too Long
+        send_http_error(client_socket, 414, "URI Too Long");
         return;
     }
     
     // Verifica se il percorso contiene sequenze di escape per directory traversal
     if (strstr(path_start, "..")) {
-        send_403(client_socket);  // Forbidden
+        send_http_error(client_socket, 403, "Forbidden");
         return;
     }
     
@@ -198,7 +165,7 @@ void handle_http_request(int client_socket, char* buffer) {
     // Verifica se il file esiste e può essere letto
     struct stat file_stat;
     if (stat(filepath, &file_stat) != 0) {
-        send_404(client_socket);  // Not Found
+        send_http_error(client_socket, 404, "Not Found");
         return;
     }
     
@@ -227,14 +194,14 @@ void handle_http_request(int client_socket, char* buffer) {
                  server_config.www_root, (int)path_length, path_start);
         
         if (stat(filepath, &file_stat) != 0) {
-            send_404(client_socket);  // Not Found
+            send_http_error(client_socket, 404, "Not Found");
             return;
         }
     }
     
     // Verifica i permessi di lettura
     if (access(filepath, R_OK) != 0) {
-        send_403(client_socket);  // Forbidden
+        send_http_error(client_socket, 403, "Forbidden");
         return;
     }
     
@@ -247,7 +214,7 @@ void handle_http_request(int client_socket, char* buffer) {
     
     if (request_count > 100) {  // Limite arbitrario
         pthread_mutex_unlock(&request_mutex);
-        send_429(client_socket);  // Too Many Requests
+        send_http_error(client_socket, 429, "Too Many Requests");
         request_count--;
         return;
     }
@@ -267,7 +234,7 @@ void handle_http_request(int client_socket, char* buffer) {
     if (strstr(filepath, ".html") != NULL) {
         FILE* file = fopen(filepath, "r");
         if (!file) {
-            send_404(client_socket);  // Not Found
+            send_http_error(client_socket, 404, "Not Found");
             goto cleanup;
         }
         
@@ -278,14 +245,14 @@ void handle_http_request(int client_socket, char* buffer) {
         
         char* content = malloc(size + 1);
         if (!content) {
-            send_500(client_socket);  // Internal Server Error
+            send_http_error(client_socket, 500, "Internal Server Error");
             fclose(file);
             goto cleanup;
         }
         
         size_t bytes_read = fread(content, 1, size, file);
         if (bytes_read < size) {
-            send_500(client_socket);  // Internal Server Error
+            send_http_error(client_socket, 500, "Internal Server Error");
             free(content);
             fclose(file);
             goto cleanup;
@@ -295,32 +262,13 @@ void handle_http_request(int client_socket, char* buffer) {
         fclose(file);
         
         // Cerca il meta tag con le metriche
-        char* metrics_list = NULL;
-        char* meta_tag = strstr(content, "<meta name=\"sews-metrics\" content=\"");
-        
-        if (meta_tag) {
-            meta_tag += 34; // Lunghezza di "<meta name=\"sews-metrics\" content=\""
-            char* end = strchr(meta_tag, '\"');
-            
-            if (end) {
-                size_t metrics_length = end - meta_tag;
-                metrics_list = malloc(metrics_length + 1);
-                if (!metrics_list) {
-                    send_500(client_socket);  // Internal Server Error
-                    free(content);
-                    goto cleanup;
-                }
-                
-                strncpy(metrics_list, meta_tag, metrics_length);
-                metrics_list[metrics_length] = '\0';
-            }
-        }
+        char* metrics_list = extract_meta_content(content, "sews-metrics");
         
         // Se non ci sono metriche specificate, usa una lista vuota
         if (!metrics_list) {
             metrics_list = strdup("");
             if (!metrics_list) {
-                send_500(client_socket);  // Internal Server Error
+                send_http_error(client_socket, 500, "Internal Server Error");
                 free(content);
                 goto cleanup;
             }
@@ -349,7 +297,7 @@ void handle_http_request(int client_socket, char* buffer) {
             // Crea il nuovo contenuto con lo script inserito
             char* new_content = malloc(size + strlen(script_tag) + 1);
             if (!new_content) {
-                send_500(client_socket);  // Internal Server Error
+                send_http_error(client_socket, 500, "Internal Server Error");
                 free(content);
                 free(metrics_list);
                 goto cleanup;
