@@ -49,6 +49,42 @@ h1 {
     margin: 10px 0;
 }
 
+
+.metric-value.warning {
+    color: #ffc107; /* Giallo per warning */
+}
+
+.metric-value.critical {
+    color: #dc3545; /* Rosso per critical */
+    animation: pulse 1.5s infinite;
+}
+
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+
+.alert-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #28a745; /* Verde per normale */
+}
+
+.alert-indicator.warning {
+    background-color: #ffc107; /* Giallo per warning */
+}
+
+.alert-indicator.critical {
+    background-color: #dc3545; /* Rosso per critical */
+}
+
 .status {
     text-align: center;
     padding: 10px;
@@ -80,4 +116,35 @@ h1 {
     color: #666;
     margin-top: 20px;
     font-style: italic;
+}
+
+.alert-legend {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    gap: 20px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.legend-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.legend-indicator.normal {
+    background-color: #28a745;
+}
+
+.legend-indicator.warning {
+    background-color: #ffc107;
+}
+
+.legend-indicator.critical {
+    background-color: #dc3545;
 }

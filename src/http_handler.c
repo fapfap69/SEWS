@@ -61,6 +61,15 @@ static void send_500(int client_socket) {
                           "<html><body><h1>500 Internal Server Error</h1></body></html>";
     send(client_socket, response, strlen(response), 0);
 }
+// Invia un errore 414 se l'URI è troppo lungo
+static void send_414(int client_socket) {
+    const char* response = "HTTP/1.1 414 URI Too Long\r\n"
+                          "Content-Type: text/html\r\n"
+                          "Connection: close\r\n"
+                          "\r\n"
+                          "<html><body><h1>414 URI Too Long</h1></body></html>";
+    send(client_socket, response, strlen(response), 0);
+}
 // Invia un errore 403 se l'accesso è vietato
 static void send_403(int client_socket) {
     const char* response = "HTTP/1.1 403 Forbidden\r\n"
@@ -79,6 +88,7 @@ static void send_400(int client_socket) {
                           "<html><body><h1>400 Bad Request</h1></body></html>";
     send(client_socket, response, strlen(response), 0);
 }
+/*
 // Invia un errore 401 se l'autenticazione è richiesta
 static void send_401(int client_socket) {
     const char* response = "HTTP/1.1 401 Unauthorized\r\n"
@@ -97,6 +107,7 @@ static void send_408(int client_socket) {
                           "<html><body><h1>408 Request Timeout</h1></body></html>";
     send(client_socket, response, strlen(response), 0);
 }
+    */
 // Invia un errore 429 se ci sono troppe richieste
 static void send_429(int client_socket) {
     const char* response = "HTTP/1.1 429 Too Many Requests\r\n"
@@ -141,35 +152,145 @@ static void send_file(int client_socket, const char* filepath) {
 }
 
 void handle_http_request(int client_socket, char* buffer) {
+    // Verifica se la richiesta è valida
+    if (!strstr(buffer, "GET ") && !strstr(buffer, "HEAD ")) {
+        send_400(client_socket);  // Bad Request
+        return;
+    }
+    
     // Estrai il percorso dalla richiesta
-    char* path_start = strchr(buffer, ' ') + 1;
+    char* path_start = strchr(buffer, ' ');
+    if (!path_start) {
+        send_400(client_socket);  // Bad Request
+        return;
+    }
+    
+    path_start += 1;
     char* path_end = strchr(path_start, ' ');
+    if (!path_end) {
+        send_400(client_socket);  // Bad Request
+        return;
+    }
+    
     size_t path_length = path_end - path_start;
-
+    
+    // Verifica se il percorso è troppo lungo
+    if (path_length >= MAX_PATH - strlen(server_config.www_root) - 1) {
+        send_414(client_socket);  // URI Too Long
+        return;
+    }
+    
+    // Verifica se il percorso contiene sequenze di escape per directory traversal
+    if (strstr(path_start, "..")) {
+        send_403(client_socket);  // Forbidden
+        return;
+    }
+    
     char filepath[MAX_PATH];
     strncpy(filepath, server_config.www_root, sizeof(filepath));
     strncat(filepath, path_start, path_length);
-
+    
     // Se la richiesta è per la root, serve index.html
     if (strcmp(path_start, "/") == 0 || strcmp(path_start, "/index.html") == 0) {
         snprintf(filepath, sizeof(filepath), "%s/index.html", server_config.www_root);
     }
-
+    
+    // Verifica se il file esiste e può essere letto
+    struct stat file_stat;
+    if (stat(filepath, &file_stat) != 0) {
+        send_404(client_socket);  // Not Found
+        return;
+    }
+    
+    // Verifica se è una directory
+    if (S_ISDIR(file_stat.st_mode)) {
+        // Reindirizza alla versione con slash finale se necessario
+        if (path_start[path_length - 1] != '/') {
+            char redirect_path[MAX_PATH];
+            snprintf(redirect_path, sizeof(redirect_path), "%.*s/", (int)path_length, path_start);
+            
+            char redirect_response[512];
+            snprintf(redirect_response, sizeof(redirect_response),
+                     "HTTP/1.1 301 Moved Permanently\r\n"
+                     "Location: %s\r\n"
+                     "Content-Length: 0\r\n"
+                     "Connection: close\r\n"
+                     "\r\n",
+                     redirect_path);
+            
+            send(client_socket, redirect_response, strlen(redirect_response), 0);
+            return;
+        }
+        
+        // Prova a servire index.html nella directory
+        snprintf(filepath, sizeof(filepath), "%s%.*s/index.html", 
+                 server_config.www_root, (int)path_length, path_start);
+        
+        if (stat(filepath, &file_stat) != 0) {
+            send_404(client_socket);  // Not Found
+            return;
+        }
+    }
+    
+    // Verifica i permessi di lettura
+    if (access(filepath, R_OK) != 0) {
+        send_403(client_socket);  // Forbidden
+        return;
+    }
+    
+    // Limita il numero di richieste simultanee (esempio)
+    static int request_count = 0;
+    static pthread_mutex_t request_mutex = PTHREAD_MUTEX_INITIALIZER;
+    
+    pthread_mutex_lock(&request_mutex);
+    request_count++;
+    
+    if (request_count > 100) {  // Limite arbitrario
+        pthread_mutex_unlock(&request_mutex);
+        send_429(client_socket);  // Too Many Requests
+        request_count--;
+        return;
+    }
+    
+    pthread_mutex_unlock(&request_mutex);
+    
+    // Imposta un timeout per la richiesta
+    struct timeval timeout;
+    timeout.tv_sec = 30;  // 30 secondi
+    timeout.tv_usec = 0;
+    
+    if (setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        perror("setsockopt failed");
+    }
+    
     // Se è un file HTML, analizza le metriche richieste
     if (strstr(filepath, ".html") != NULL) {
         FILE* file = fopen(filepath, "r");
         if (!file) {
-            send_404(client_socket);
-            return;
+            send_404(client_socket);  // Not Found
+            goto cleanup;
         }
         
         // Leggi il contenuto del file
         fseek(file, 0, SEEK_END);
-        long size = ftell(file);
+        size_t size = (size_t)ftell(file);
         fseek(file, 0, SEEK_SET);
         
         char* content = malloc(size + 1);
-        fread(content, 1, size, file);
+        if (!content) {
+            send_500(client_socket);  // Internal Server Error
+            fclose(file);
+            goto cleanup;
+        }
+        
+        size_t bytes_read = fread(content, 1, size, file);
+        if (bytes_read < size) {
+            send_500(client_socket);  // Internal Server Error
+            free(content);
+            fclose(file);
+            goto cleanup;
+        }
+        
         content[size] = '\0';
         fclose(file);
         
@@ -184,6 +305,12 @@ void handle_http_request(int client_socket, char* buffer) {
             if (end) {
                 size_t metrics_length = end - meta_tag;
                 metrics_list = malloc(metrics_length + 1);
+                if (!metrics_list) {
+                    send_500(client_socket);  // Internal Server Error
+                    free(content);
+                    goto cleanup;
+                }
+                
                 strncpy(metrics_list, meta_tag, metrics_length);
                 metrics_list[metrics_length] = '\0';
             }
@@ -192,6 +319,11 @@ void handle_http_request(int client_socket, char* buffer) {
         // Se non ci sono metriche specificate, usa una lista vuota
         if (!metrics_list) {
             metrics_list = strdup("");
+            if (!metrics_list) {
+                send_500(client_socket);  // Internal Server Error
+                free(content);
+                goto cleanup;
+            }
         }
         
         // Genera un token di sicurezza unico per questa richiesta
@@ -216,6 +348,13 @@ void handle_http_request(int client_socket, char* buffer) {
             
             // Crea il nuovo contenuto con lo script inserito
             char* new_content = malloc(size + strlen(script_tag) + 1);
+            if (!new_content) {
+                send_500(client_socket);  // Internal Server Error
+                free(content);
+                free(metrics_list);
+                goto cleanup;
+            }
+            
             strncpy(new_content, content, pos);
             strcpy(new_content + pos, script_tag);
             strcpy(new_content + pos + strlen(script_tag), head_end);
@@ -230,8 +369,14 @@ void handle_http_request(int client_socket, char* buffer) {
                      "\r\n",
                      strlen(new_content));
             
-            send(client_socket, header, strlen(header), 0);
-            send(client_socket, new_content, strlen(new_content), 0);
+            if (send(client_socket, header, strlen(header), 0) < 0 ||
+                send(client_socket, new_content, strlen(new_content), 0) < 0) {
+                // Errore di invio, probabilmente il client ha chiuso la connessione
+                free(new_content);
+                free(content);
+                free(metrics_list);
+                goto cleanup;
+            }
             
             free(new_content);
         } else {
@@ -248,4 +393,11 @@ void handle_http_request(int client_socket, char* buffer) {
         // Per i file non HTML, usa la funzione esistente
         send_file(client_socket, filepath);
     }
+
+cleanup:
+    // Decrementa il contatore di richieste
+    pthread_mutex_lock(&request_mutex);
+    request_count--;
+    pthread_mutex_unlock(&request_mutex);
 }
+

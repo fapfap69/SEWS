@@ -8,10 +8,40 @@ document.addEventListener('DOMContentLoaded', function() {
     // Ottieni le metriche dal meta tag
     const metricsMeta = document.querySelector('meta[name="sews-metrics"]');
     const authorizedMetrics = metricsMeta ? metricsMeta.getAttribute('content').split(',') : [];
-    
+   
+    // Ottieni le soglie dal meta tag
+    const thresholdsMeta = document.querySelector('meta[name="sews-thresholds"]');
+    const thresholdsStr = thresholdsMeta ? thresholdsMeta.getAttribute('content') : '';
+ 
+    // Parsing delle soglie
+    const thresholds = {};
+    if (thresholdsStr) {
+        thresholdsStr.split(',').forEach(item => {
+            const [metric, warning, critical] = item.split(':');
+            thresholds[metric] = {
+                warning: parseFloat(warning),
+                critical: parseFloat(critical)
+            };
+        });
+    }
+
+
     // Ottieni il token di sicurezza inserito dal server
     const config = window.SEWS_CONFIG || {};
     const securityToken = config.securityToken || '';
+
+    // Funzione per determinare lo stato di allarme
+    function getAlertState(name, value) {
+        if (!thresholds[name]) return 'normal';
+        
+        if (value >= thresholds[name].critical) {
+            return 'critical';
+        } else if (value >= thresholds[name].warning) {
+            return 'warning';
+        }
+        
+        return 'normal';
+    }
 
     function updateTimestamp(timestamp) {
         let timestampElement = document.getElementById('last-update');
@@ -47,9 +77,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const value = data.value;
         const unit = data.unit || '';
     
+        // Determina lo stato di allarme
+        const alertState = getAlertState(name, value);
+
         // Cerca se esiste già un elemento per questa metrica
         let metricElement = document.getElementById('metric-' + name);
         let unitElement = document.getElementById('unit-' + name);
+        let alertElement = document.getElementById('alert-' + name);
     
         // Se non esiste, crealo
         if (!metricElement) {
@@ -69,15 +103,26 @@ document.addEventListener('DOMContentLoaded', function() {
             metricUnit.id = 'unit-' + name;
             metricUnit.textContent = unit;
         
+            const alertIndicator = document.createElement('div');
+            alertIndicator.className = 'alert-indicator ' + alertState;
+            alertIndicator.id = 'alert-' + name;
+
+            metricCard.appendChild(alertIndicator);
             metricCard.appendChild(metricTitle);
             metricCard.appendChild(metricValue);
             metricCard.appendChild(metricUnit);
             metricsContainer.appendChild(metricCard);
         } else {
-            // Altrimenti aggiorna solo il valore e l'unità
+            // Altrimenti aggiorna solo il valore, l'unità e lo stato di allarme
             metricElement.textContent = value;
+            metricElement.className = 'metric-value ' + alertState;
+            
             if (unitElement) {
                 unitElement.textContent = unit;
+            }
+            
+            if (alertElement) {
+                alertElement.className = 'alert-indicator ' + alertState;
             }
         }
     }

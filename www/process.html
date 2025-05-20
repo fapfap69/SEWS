@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="sews-metrics" content="cpu,memory,disk,load,processes"> <!-- Metriche richieste da questa pagina -->
+    <meta name="sews-thresholds" content="cpu:80:90,memory:10:20"> <!-- Soglie warning:critical -->
     <title>SEWS Dashboard</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -15,6 +16,20 @@
         </div>
         <div class="status">
             Stato connessione: <span id="connection-status">Disconnesso</span>
+        </div>
+        <div class="alert-legend">
+            <div class="legend-item">
+                <div class="legend-indicator normal"></div>
+                <span>Normale</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-indicator warning"></div>
+                <span>Attenzione</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-indicator critical"></div>
+                <span>Critico</span>
+            </div>
         </div>
     </div>
     <script src="js/script.js"></script>
