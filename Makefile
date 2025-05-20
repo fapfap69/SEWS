@@ -22,7 +22,7 @@ OBJDIR = obj
 
 SOURCES = $(wildcard $(SRCDIR)/*.c)
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
-TARGET = sews
+TARGET = swsws
 
 .PHONY: all clean size
 

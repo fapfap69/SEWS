@@ -262,7 +262,7 @@ void handle_http_request(int client_socket, char* buffer) {
         fclose(file);
         
         // Cerca il meta tag con le metriche
-        char* metrics_list = extract_meta_content(content, "sews-metrics");
+        char* metrics_list = extract_meta_content(content, "swsws-metrics");
         
         // Se non ci sono metriche specificate, usa una lista vuota
         if (!metrics_list) {
@@ -282,7 +282,7 @@ void handle_http_request(int client_socket, char* buffer) {
         char script_tag[512];
         snprintf(script_tag, sizeof(script_tag),
                  "<script>\n"
-                 "window.SEWS_CONFIG = {\n"
+                 "window.SWSWS_CONFIG = {\n"
                  "  securityToken: \"%s\"\n"
                  "};\n"
                  "</script>",

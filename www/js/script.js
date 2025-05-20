@@ -6,11 +6,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const maxReconnectAttempts = 5;
     
     // Ottieni le metriche dal meta tag
-    const metricsMeta = document.querySelector('meta[name="sews-metrics"]');
+    const metricsMeta = document.querySelector('meta[name="swsws-metrics"]');
     const authorizedMetrics = metricsMeta ? metricsMeta.getAttribute('content').split(',') : [];
    
     // Ottieni le soglie dal meta tag
-    const thresholdsMeta = document.querySelector('meta[name="sews-thresholds"]');
+    const thresholdsMeta = document.querySelector('meta[name="swsws-thresholds"]');
     const thresholdsStr = thresholdsMeta ? thresholdsMeta.getAttribute('content') : '';
  
     // Parsing delle soglie
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     // Ottieni il token di sicurezza inserito dal server
-    const config = window.SEWS_CONFIG || {};
+    const config = window.SWSWS_CONFIG || {};
     const securityToken = config.securityToken || '';
 
     // Funzione per determinare lo stato di allarme

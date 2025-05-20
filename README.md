@@ -1,6 +1,6 @@
-# SEWS - Simple Embedded Web Server
+# SWSWS - Simple Web Socket Web Server
 
-SEWS is a lightweight embedded web server written in C, designed to display metrics and numerical indicators in real-time via WebSocket.
+SWSWS is a lightweight embedded web server written in C, designed to display metrics and numerical indicators in real-time via WebSocket.
 
 Author : A.Franco - INFN Sezione di BARI - ITALY
 Version : 1.0 - 20/05/2025
@@ -32,7 +32,7 @@ make compress  # Compress executable with UPX
 ## Running
 
 ```bash
-./sews [options]
+./swsws [options]
 ```
 
 ### Options
@@ -53,7 +53,7 @@ make compress  # Compress executable with UPX
 ### Metrics Simulation
 
 ```bash
-./sews --metrics-source="sim:1:100"
+./swsws --metrics-source="sim:1:100"
 ```
 
 This starts the server with simulated metrics that increment by 1 from a base of 100.
@@ -61,7 +61,7 @@ This starts the server with simulated metrics that increment by 1 from a base of
 ### Reading from File
 
 ```bash
-./sews --metrics-source="file:/path/to/metrics.txt"
+./swsws --metrics-source="file:/path/to/metrics.txt"
 ```
 
 The metrics file must have the format:
@@ -77,7 +77,7 @@ network=1024[KB/s]
 ### Reading from Command
 
 ```bash
-./sews --metrics-source="cmd:./get_metrics.sh"
+./swsws --metrics-source="cmd:./get_metrics.sh"
 ```
 
 The command must produce output in the metrics format.
@@ -113,8 +113,8 @@ To create a custom dashboard, create an HTML file with meta tags to specify the 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="sews-metrics" content="cpu,memory,disk,load"> <!-- Requested metrics -->
-    <meta name="sews-thresholds" content="cpu:80:90,memory:70:90"> <!-- Warning:critical thresholds -->
+    <meta name="swsws-metrics" content="cpu,memory,disk,load"> <!-- Requested metrics -->
+    <meta name="swsws-thresholds" content="cpu:80:90,memory:70:90"> <!-- Warning:critical thresholds -->
     <title>System Dashboard</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -153,7 +153,7 @@ To create a custom dashboard, create an HTML file with meta tags to specify the 
 ## Project Structure
 
 ```
-SEWS/
+SWSWS/
 ├── src/                # Source code
 │   ├── main.c          # Entry point
 │   ├── server.c        # Server core
@@ -170,7 +170,7 @@ SEWS/
 
 ## Security
 
-SEWS implements several security measures:
+SWSWS implements several security measures:
 - Authentication tokens for WebSocket connections
 - Page-based metrics filtering
 - Protection against directory traversal
@@ -179,7 +179,7 @@ SEWS implements several security measures:
 
 ## Performance
 
-SEWS is designed to be lightweight and fast:
+SWSWS is designed to be lightweight and fast:
 - Executable size < 30KB
 - Low memory consumption
 - Support for hundreds of simultaneous connections

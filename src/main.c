@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
     // Parsing dei parametri da riga di comando
     parse_command_line(argc, argv);
     
-    printf("Starting SEWS (Simple Embedded Web Server)\n");
+    printf("Starting SWSWS (Simple Embedded Web Server)\n");
     
     // Inizializza il sistema di metriche
     metrics_init();

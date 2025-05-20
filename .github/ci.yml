@@ -1,4 +1,4 @@
-name: SEWS CI/CD
+name: SWSWS CI/CD
 
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
     - name: Check for memory leaks
       run: |
         make
-        valgrind --leak-check=full --error-exitcode=1 ./sews --test-mode
+        valgrind --leak-check=full --error-exitcode=1 ./swsws --test-mode
 
   security-scan:
     runs-on: ubuntu-latest
@@ -43,7 +43,7 @@ jobs:
     - name: Run OWASP dependency check
       uses: dependency-check/Dependency-Check_Action@main
       with:
-        project: 'SEWS'
+        project: 'SWSWS'
         path: '.'
         format: 'HTML'
 
@@ -119,8 +119,8 @@ jobs:
       with:
         push: true
         tags: |
-          your-dockerhub-username/sews:latest
-          your-dockerhub-username/sews:${{ github.sha }}
+          your-dockerhub-username/swsws:latest
+          your-dockerhub-username/swsws:${{ github.sha }}
 
     - name: Create Release
       id: create_release
@@ -143,8 +143,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./build/sews
-        asset_name: sews
+        asset_path: ./build/swsws
+        asset_name: swsws
         asset_content_type: application/octet-stream
 
 
