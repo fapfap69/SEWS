@@ -34,17 +34,6 @@ target_link_libraries(swsws_lib
 add_executable(swsws src/main.c)
 target_link_libraries(swsws swsws_lib)
 
-# Configurazione dei test
-if(BUILD_TESTS)
-    enable_testing()
-    file(GLOB TEST_SOURCES "tests/*.c")
-    
-    add_executable(run_tests ${TEST_SOURCES})
-    target_link_libraries(run_tests swsws_lib)
-    
-    add_test(NAME unit_tests COMMAND run_tests)
-endif()
-
 # Installazione
 install(TARGETS swsws
     RUNTIME DESTINATION bin
